@@ -1,0 +1,8 @@
+import { NextRequest } from "next/server";
+import { ensureSchema, orderFromRow } from "@/lib/db/queries";
+import { getPool } from "@/lib/db";
+import { requireAdmin } from "@/lib/admin-auth";
+export const runtime="nodejs";
+export async function PATCH(r:NextRequest,c:{params:Promise<{id:string}>}){
+  const authError = await requireAdmin();
+  if (authError) return authError;let client: import("pg").PoolClient | undefined;try{client=await getPool().connect();await ensureSchema();const{id}=await c.params;const{decision}=await r.json();if(decision!=="verified"&&decision!=="rejected")return Response.json({error:"Invalid decision."},{status:400});await client.query("BEGIN");const{rows}=await client.query("SELECT * FROM orders WHERE id=$1 FOR UPDATE",[id]);const order=rows[0];if(!order){if(client) await client.query("ROLLBACK");return Response.json({error:"Order not found."},{status:404});}if(order.status!=="pending"){if(client) await client.query("ROLLBACK");return Response.json({error:"This order was already reviewed."},{status:409});}if(decision==="rejected"){for(const line of order.items as {productId:string;quantity:number}[]){await client.query("UPDATE products SET stock=stock+$2 WHERE id=$1",[line.productId,line.quantity]);}}const updated=await client.query("UPDATE orders SET status=$2,reviewed_at=NOW() WHERE id=$1 RETURNING *",[id,decision]);await client.query("COMMIT");return Response.json(orderFromRow(updated.rows[0]));}catch(e){if(client) await client.query("ROLLBACK");return Response.json({error:e instanceof Error?e.message:"Review failed"},{status:400});}finally{client?.release();}}

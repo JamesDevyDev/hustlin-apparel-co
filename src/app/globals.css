@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-roboto), ui-sans-serif, system-ui, sans-serif;
+  --color-surface: #f4f4f4;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: #fff;
+  color: #000;
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip; /* full-width hero uses 100vw */
+}
+
+:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 2px;
+}
+
+button:not(:disabled),
+select {
+  cursor: pointer;
+}
