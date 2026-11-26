@@ -2,31 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Script from "next/script";
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useCart } from "@/contexts/cart-context";
-import { PAYMENT_QR_SRC, SHIPPING_FEE } from "@/lib/config";
+import { SHIPPING_FEE } from "@/lib/config";
 import { useSettings } from "@/hooks/use-settings";
 import { fileToReceiptDataUrl } from "@/lib/image";
 import { placeOrder } from "@/lib/services/order-service";
 import { StockError } from "@/lib/services/product-service";
 import { formatPrice } from "@/lib/utils";
 import type { OrderCustomer } from "@/types/order";
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (container: HTMLElement, options: {
-        sitekey: string;
-        callback: (token: string) => void;
-        "expired-callback": () => void;
-        "error-callback": () => void;
-      }) => string;
-      reset: (widgetId?: string) => void;
-      remove: (widgetId: string) => void;
-    };
-  }
-}
 
 const inputClass =
   "mt-2 h-[46px] w-full rounded-[3px] border-2 border-black bg-surface px-3 text-base font-light";
@@ -96,32 +80,8 @@ export function CheckoutView() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
   const [stockProblem, setStockProblem] = useState(false);
-  const [qrFailed, setQrFailed] = useState<string | null>(null);
-  const [captchaToken, setCaptchaToken] = useState("");
-  const [turnstileReady, setTurnstileReady] = useState(false);
-  const captchaContainer = useRef<HTMLDivElement>(null);
-  const captchaWidgetId = useRef<string | null>(null);
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
   const settings = useSettings();
-  const qrSrc = settings?.qrUrl ?? PAYMENT_QR_SRC;
-  const qrMissing = !qrSrc || qrFailed === qrSrc;
-
-  useEffect(() => {
-    if (!turnstileReady || !siteKey || !captchaContainer.current || !window.turnstile || captchaWidgetId.current) return;
-    captchaWidgetId.current = window.turnstile.render(captchaContainer.current, {
-      sitekey: siteKey,
-      callback: (token) => { setCaptchaToken(token); setError(""); },
-      "expired-callback": () => setCaptchaToken(""),
-      "error-callback": () => { setCaptchaToken(""); setError("CAPTCHA verification failed. Please try again."); },
-    });
-    return () => {
-      if (captchaWidgetId.current && window.turnstile) {
-        window.turnstile.remove(captchaWidgetId.current);
-        captchaWidgetId.current = null;
-      }
-    };
-  }, [turnstileReady, siteKey]);
 
   const total = subtotal + SHIPPING_FEE;
 
@@ -165,19 +125,16 @@ export function CheckoutView() {
       return setError("Please enter a valid mobile number.");
     }
     if (!receipt) return setError("Please upload your payment receipt (Step 3).");
-    if (!captchaToken) return setError("Please complete the CAPTCHA verification.");
 
     setSubmitting(true);
     try {
-      const order = await placeOrder({ customer, items, receipt: receipt.dataUrl, captchaToken });
+      const order = await placeOrder({ customer, items, receipt: receipt.dataUrl });
       setDone(true);
       clear();
       router.push(`/order/${order.id}`);
     } catch (err) {
       setStockProblem(err instanceof StockError);
       setError(err instanceof Error ? err.message : "Something went wrong.");
-      setCaptchaToken("");
-      if (captchaWidgetId.current && window.turnstile) window.turnstile.reset(captchaWidgetId.current);
       setSubmitting(false);
     }
   }
@@ -201,14 +158,6 @@ export function CheckoutView() {
   }
 
   return (
-    <>
-    {siteKey && (
-      <Script
-        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-        strategy="afterInteractive"
-        onLoad={() => setTurnstileReady(true)}
-      />
-    )}
     <form onSubmit={onSubmit} noValidate className="grid gap-12 md:grid-cols-[minmax(0,1fr)_380px] md:gap-[60px]">
       {/* Delivery details */}
       <div className="space-y-6">
@@ -333,16 +282,6 @@ export function CheckoutView() {
           </ol>
         </section>
 
-        <section aria-label="Security verification" className="space-y-2">
-          <p className="text-[13px]">Security check</p>
-          {siteKey ? (
-            <div ref={captchaContainer} className="min-h-[65px]" />
-          ) : (
-            <p className="text-[13px] text-red-600">CAPTCHA is not configured. Please contact the store administrator.</p>
-          )}
-          <p className="text-[12px] text-black/50">Complete this check before placing your order.</p>
-        </section>
-
         {error && (
           <div role="alert" className="text-sm text-red-600">
             <p>{error}</p>
@@ -357,7 +296,7 @@ export function CheckoutView() {
         <div>
           <button
             type="submit"
-            disabled={submitting || processing || !captchaToken || !siteKey}
+            disabled={submitting || processing}
             className="h-11 w-full bg-black text-xs uppercase tracking-[0.2em] text-white transition-colors hover:bg-black/80 disabled:bg-black/30"
           >
             {submitting ? "Placing order…" : "Place order"}
@@ -368,6 +307,5 @@ export function CheckoutView() {
         </div>
       </div>
     </form>
-    </>
   );
 }
