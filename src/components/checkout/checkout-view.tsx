@@ -237,7 +237,7 @@ export function CheckoutView() {
               <div className="mt-3 grid aspect-square w-full max-w-[240px] place-items-center bg-surface">
                 {qrMissing ? (
                   <p className="px-4 text-center text-[13px] text-black/50">
-                    QR code not set up yet. Add a link in Admin → Settings.
+                    QR code is loading.
                   </p>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
