@@ -14,6 +14,7 @@ export function AdminSettings() {
   const [saved, setSaved] = useState<string | null>(null);
   const [qrUrl, setQrUrl] = useState("");
   const [previewBroken, setPreviewBroken] = useState(false);
+  const [uploadingQr, setUploadingQr] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
@@ -49,6 +50,21 @@ export function AdminSettings() {
       cancelled = true;
     };
   }, []);
+
+  async function uploadQr(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Choose an image file."); return; }
+    if (file.size > 10 * 1024 * 1024) { setError("Image must be 10 MB or smaller."); return; }
+    setError(""); setNotice(""); setUploadingQr(true);
+    try {
+      const form = new FormData(); form.append("file", file);
+      const response = await fetch("/api/admin/images", { method: "POST", body: form });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Upload failed.");
+      setQrUrl(result.url); setPreviewBroken(false);
+    } catch (err) { setError(err instanceof Error ? err.message : "Image upload failed."); }
+    finally { setUploadingQr(false); }
+  }
 
   const trimmed = (qrUrl ?? "").trim();
   const previewable = isValidImageLink(trimmed);
@@ -126,8 +142,13 @@ export function AdminSettings() {
               className={input}
             />
             <p className="mt-2 text-[13px] text-black/60">
-              Paste a direct link to the image.
+              Paste a direct link or upload your QR image.
             </p>
+            <label className="mt-3 inline-flex cursor-pointer border-2 border-black px-5 py-3 text-xs uppercase tracking-[0.2em] hover:bg-black hover:text-white">
+              {uploadingQr ? "Uploading…" : "+ Upload QR image"}
+              <input type="file" accept="image/*" disabled={uploadingQr} className="sr-only" onChange={(e) => { uploadQr(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+            </label>
+            <p className="mt-2 text-xs text-black/60">Upload images (up to 10 MB). Stored in Cloudinary.</p>
           </div>
 
           <div className="grid aspect-square w-full max-w-[240px] place-items-center bg-surface">
@@ -154,7 +175,7 @@ export function AdminSettings() {
         <div className="flex items-center gap-6">
           <button
             type="submit"
-            disabled={saving || trimmed === saved}
+            disabled={saving || uploadingQr || trimmed === saved}
             className="h-11 bg-black px-8 text-xs uppercase tracking-[0.2em] text-white hover:bg-black/80 disabled:bg-black/30"
           >
             {saving ? "Saving…" : "Save"}

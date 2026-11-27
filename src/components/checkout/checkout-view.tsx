@@ -7,7 +7,6 @@ import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useCart } from "@/contexts/cart-context";
 import { SHIPPING_FEE } from "@/lib/config";
 import { useSettings } from "@/hooks/use-settings";
-import { fileToReceiptDataUrl } from "@/lib/image";
 import { placeOrder } from "@/lib/services/order-service";
 import { StockError } from "@/lib/services/product-service";
 import { formatPrice } from "@/lib/utils";
@@ -79,7 +78,7 @@ export function CheckoutView() {
   const [values, setValues] = useState<OrderCustomer>(EMPTY);
   const [receipt, setReceipt] = useState<{
     name: string;
-    dataUrl: string;
+    url: string;
   } | null>(null);
   const [processing, setProcessing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -113,10 +112,18 @@ export function CheckoutView() {
     setProcessing(true);
 
     try {
-      setReceipt({
-        name: file.name,
-        dataUrl: await fileToReceiptDataUrl(file),
-      });
+      if (!file.type.startsWith("image/")) {
+        throw new Error("Only image files are accepted.");
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error("Receipt must be 10 MB or smaller.");
+      }
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/uploads/receipt", { method: "POST", body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Receipt upload failed.");
+      setReceipt({ name: file.name, url: data.url });
     } catch (err) {
       setError(
         err instanceof Error
@@ -161,7 +168,7 @@ export function CheckoutView() {
       const order = await placeOrder({
         customer,
         items,
-        receipt: receipt.dataUrl,
+        receipt: receipt.url,
       });
 
       setDone(true);
@@ -439,7 +446,7 @@ export function CheckoutView() {
                 type="file"
                 accept="image/*"
                 onChange={onReceipt}
-                disabled={processing}
+                disabled={processing || submitting}
                 className="sr-only"
               />
 
@@ -447,7 +454,7 @@ export function CheckoutView() {
                 <div className="mt-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={receipt.dataUrl}
+                    src={receipt.url}
                     alt="Your receipt"
                     className="max-h-56 border border-black/15"
                   />

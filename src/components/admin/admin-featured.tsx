@@ -19,6 +19,22 @@ export function AdminFeatured() {
   const [href, setHref] = useState("");
   const [previewBroken, setPreviewBroken] = useState(false);
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  async function uploadImage(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Choose an image file."); return; }
+    if (file.size > 10 * 1024 * 1024) { setError("Image must be 10 MB or smaller."); return; }
+    setError(""); setUploading(true);
+    try {
+      const form = new FormData(); form.append("file", file);
+      const response = await fetch("/api/admin/images", { method: "POST", body: form });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Upload failed.");
+      setUrl(result.url); setPreviewBroken(false);
+    } catch (err) { setError(err instanceof Error ? err.message : "Image upload failed."); }
+    finally { setUploading(false); }
+  }
 
   useEffect(() => setPreviewBroken(false), [url]);
 
@@ -64,6 +80,11 @@ export function AdminFeatured() {
             onChange={(e) => setUrl(e.target.value)}
             className={input}
           />
+          <label className="mt-3 inline-flex cursor-pointer border-2 border-black px-5 py-3 text-xs uppercase tracking-[0.2em] hover:bg-black hover:text-white">
+            {uploading ? "Uploading…" : "+ Upload wallpaper"}
+            <input type="file" accept="image/*" disabled={uploading} className="sr-only" onChange={(e) => { uploadImage(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+          </label>
+          <p className="mt-2 text-xs text-black/60">Upload images (up to 10 MB). Stored in Cloudinary, or paste an image link above.</p>
         </div>
 
         {previewable && (
@@ -87,7 +108,7 @@ export function AdminFeatured() {
 
         <button
           type="submit"
-          disabled={!trimmed || previewBroken}
+          disabled={!trimmed || previewBroken || uploading}
           className="h-11 bg-black px-8 text-xs uppercase tracking-[0.2em] text-white hover:bg-black/80 disabled:bg-black/30"
         >
           Add wallpaper
