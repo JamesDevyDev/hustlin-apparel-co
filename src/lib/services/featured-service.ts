@@ -1,7 +1,8 @@
 import { isValidImageLink } from "@/lib/services/settings-service";
 export const FEATURED_CHANGED_EVENT="fibonacci:featured-changed";
-export interface Wallpaper {id:string;url:string;title?:string;href?:string}
-export interface WallpaperInput {url:string;title?:string;href?:string}
+export type WallpaperDisplayType = "desktop" | "mobile";
+export interface Wallpaper {id:string;url:string;title?:string;href?:string;displayType:WallpaperDisplayType}
+export interface WallpaperInput {url:string;title?:string;href?:string;displayType:WallpaperDisplayType}
 async function request<T>(url:string,init?:RequestInit):Promise<T>{const r=await fetch(url,{...init,headers:{"Content-Type":"application/json",...init?.headers},cache:"no-store"});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Request failed");return d as T;}
 function changed(){window.dispatchEvent(new Event(FEATURED_CHANGED_EVENT));}
 export async function listWallpapers():Promise<Wallpaper[]>{return request("/api/featured");}

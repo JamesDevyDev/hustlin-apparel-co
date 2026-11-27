@@ -17,6 +17,7 @@ export function AdminFeatured() {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [href, setHref] = useState("");
+  const [displayType, setDisplayType] = useState<"desktop" | "mobile">("desktop");
   const [previewBroken, setPreviewBroken] = useState(false);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -53,10 +54,11 @@ export function AdminFeatured() {
   function onAdd(e: FormEvent) {
     e.preventDefault();
     run(async () => {
-      await addWallpaper({ url: trimmed, title, href });
+      await addWallpaper({ url: trimmed, title, href, displayType });
       setUrl("");
       setTitle("");
       setHref("");
+      setDisplayType("desktop");
     });
   }
 
@@ -65,10 +67,23 @@ export function AdminFeatured() {
       <h1 className="text-sm uppercase tracking-[0.18em]">Featured</h1>
       <p className="mb-8 mt-2 text-[13px] text-black/60">
         Full-screen wallpapers shown as a slideshow above the product grid on the shop page. They are separate from your products.
-        Use wide, landscape images (about 1920×1080) for the best fit.
+        Add separate desktop and mobile images. Desktop images should be landscape (about 1920×1080); mobile images should be portrait (about 1080×1920). Visitors only see the version matching their screen size.
       </p>
 
       <form onSubmit={onAdd} noValidate className="max-w-xl space-y-5">
+        <div>
+          <label htmlFor="wp-display-type" className="text-[13px]">Image type</label>
+          <select
+            id="wp-display-type"
+            value={displayType}
+            onChange={(e) => setDisplayType(e.target.value as "desktop" | "mobile")}
+            className={input}
+          >
+            <option value="desktop">Desktop / Landscape</option>
+            <option value="mobile">Mobile / Portrait</option>
+          </select>
+          <p className="mt-1 text-xs text-black/60">Choose which screen size this image is intended for.</p>
+        </div>
         <div>
           <label htmlFor="wp-url" className="text-[13px]">Wallpaper image link</label>
           <input
@@ -88,7 +103,7 @@ export function AdminFeatured() {
         </div>
 
         {previewable && (
-          <div className="grid aspect-video w-full max-w-[360px] place-items-center bg-surface">
+          <div className={`grid ${displayType === "mobile" ? "aspect-[9/16] max-w-[180px]" : "aspect-video max-w-[360px]"} w-full place-items-center bg-surface`}>
             {previewBroken ? (
               <p className="px-4 text-center text-[13px] text-black/50">Couldn&apos;t load an image from that link.</p>
             ) : (
@@ -127,12 +142,13 @@ export function AdminFeatured() {
           <ul className="mt-3 border-t border-black">
             {wallpapers.map((w, i) => (
               <li key={w.id} className="flex items-center gap-4 border-b border-black/15 py-3 text-sm">
-                <div className="aspect-video w-28 shrink-0 bg-surface">
+                <div className={`${w.displayType === "mobile" ? "aspect-[9/16] w-14" : "aspect-video w-28"} shrink-0 bg-surface`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={w.url} alt="" className="h-full w-full object-cover" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate uppercase">{w.title || <span className="normal-case text-black/50">No heading</span>}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-black/70">{w.displayType === "mobile" ? "Mobile / Portrait" : "Desktop / Landscape"}</p>
                   <p className="truncate text-[13px] text-black/60">Button → {w.href || "/shop"}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-4 text-[13px]">

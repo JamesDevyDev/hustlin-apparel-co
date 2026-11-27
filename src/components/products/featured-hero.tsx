@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWallpapers } from "@/hooks/use-wallpapers";
 
@@ -12,8 +11,25 @@ export function FeaturedHero() {
   const track = useRef<HTMLUListElement>(null);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [screenType, setScreenType] = useState<"desktop" | "mobile">("desktop");
 
-  const count = wallpapers?.length ?? 0;
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const update = () => setScreenType(media.matches ? "mobile" : "desktop");
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  const visibleWallpapers = (wallpapers ?? []).filter(
+    (wallpaper) => wallpaper.displayType === screenType
+  );
+  const count = visibleWallpapers.length;
+
+  useEffect(() => {
+    setIndex(0);
+    if (track.current) track.current.scrollTo({ left: 0 });
+  }, [screenType]);
 
   const goTo = useCallback(
     (i: number) => {
@@ -35,7 +51,23 @@ export function FeaturedHero() {
   const frame =
     "relative -mt-8 ml-[calc(50%-50vw)] mb-12 h-[calc(100svh-72px)] min-h-[420px] w-screen md:-mt-12";
 
-  if (wallpapers === null || count === 0) return null;
+  if (wallpapers === null) {
+    return (
+      <section
+        aria-label="Loading featured photos"
+        aria-busy="true"
+        className={`${frame} overflow-hidden bg-neutral-200`}
+      >
+        <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-neutral-200 via-neutral-100 to-neutral-200" />
+        <div className="absolute inset-x-0 bottom-0 space-y-3 px-5 pb-16 pt-32">
+          <div className="mx-auto h-8 w-2/5 rounded-sm bg-black/10 sm:h-12" />
+          <div className="mx-auto h-2 w-16 rounded-full bg-black/10" />
+        </div>
+      </section>
+    );
+  }
+
+  if (count === 0) return null;
 
   const arrow =
     "absolute top-1/2 hidden h-12 w-12 -translate-y-1/2 place-items-center bg-black/30 text-2xl text-white hover:bg-black/50 sm:grid";
@@ -58,7 +90,7 @@ export function FeaturedHero() {
         }}
         className="flex h-full snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {wallpapers.map((w, i) => (
+        {visibleWallpapers.map((w, i) => (
           <li
             key={w.id}
             aria-roledescription="slide"
@@ -89,7 +121,7 @@ export function FeaturedHero() {
           <button type="button" aria-label="Previous slide" onClick={() => goTo(index - 1)} className={`${arrow} left-4`}>‹</button>
           <button type="button" aria-label="Next slide" onClick={() => goTo(index + 1)} className={`${arrow} right-4`}>›</button>
           <div className="absolute inset-x-0 bottom-6 flex justify-center gap-2">
-            {wallpapers.map((w, i) => (
+            {visibleWallpapers.map((w, i) => (
               <button
                 key={w.id}
                 type="button"

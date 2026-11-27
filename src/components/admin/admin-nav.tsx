@@ -26,8 +26,9 @@ export function AdminNav() {
   const onFeatured = pathname.startsWith("/admin/featured");
   const onOrders = pathname.startsWith("/admin/orders");
   const onSettings = pathname.startsWith("/admin/settings");
+  const onAnnouncements = pathname.startsWith("/admin/announcements");
   // Products owns everything else under /admin (list, add, edit).
-  const onProducts = !onFeatured && !onOrders && !onSettings;
+  const onProducts = !onFeatured && !onOrders && !onSettings && !onAnnouncements;
 
   const tab = (active: boolean) =>
     `pb-2 text-xs uppercase tracking-[0.18em] ${active ? "border-b-2 border-black" : "text-black/50 hover:text-black"
@@ -49,6 +50,9 @@ export function AdminNav() {
             {pending}
           </span>
         )}
+      </Link>
+      <Link href="/admin/announcements" className={tab(onAnnouncements)} aria-current={current(onAnnouncements)}>
+        Announcements
       </Link>
       <Link href="/admin/settings" className={tab(onSettings)} aria-current={current(onSettings)}>
         Settings

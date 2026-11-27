@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminAbout } from "@/components/admin/admin-about";
+
 import { useEffect, useState, type FormEvent } from "react";
 import {
   getSettings,
@@ -119,6 +121,7 @@ export function AdminSettings() {
   return (
     <>
       <h1 className="mb-8 text-sm uppercase tracking-[0.18em]">Settings</h1>
+      <AdminAbout />
 
       <form onSubmit={onSubmit} className="max-w-xl space-y-6" noValidate>
         <section aria-labelledby="qr-heading" className="space-y-4">

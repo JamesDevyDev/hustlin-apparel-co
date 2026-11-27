@@ -26,9 +26,22 @@ export async function ensureSchema() {
       reviewed_at TIMESTAMPTZ
     );
     CREATE TABLE IF NOT EXISTS store_settings (key TEXT PRIMARY KEY, value JSONB NOT NULL);
-    CREATE TABLE IF NOT EXISTS featured_wallpapers (
-      id TEXT PRIMARY KEY, url TEXT NOT NULL, title TEXT, href TEXT, position INTEGER NOT NULL DEFAULT 0
+    CREATE TABLE IF NOT EXISTS announcements (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      image_url TEXT NOT NULL,
+      body TEXT NOT NULL,
+      published BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS featured_wallpapers (
+      id TEXT PRIMARY KEY, url TEXT NOT NULL, title TEXT, href TEXT,
+      display_type TEXT NOT NULL DEFAULT 'desktop',
+      position INTEGER NOT NULL DEFAULT 0
+    );
+    ALTER TABLE featured_wallpapers
+      ADD COLUMN IF NOT EXISTS display_type TEXT NOT NULL DEFAULT 'desktop';
     CREATE INDEX IF NOT EXISTS orders_created_at_idx ON orders(created_at DESC);
     CREATE INDEX IF NOT EXISTS products_category_idx ON products(category);
   `);
@@ -73,9 +86,22 @@ export async function allOrders() {
   return rows.map(orderFromRow);
 }
 export async function allWallpapers(): Promise<Wallpaper[]> {
-  await ensureSchema(); const { rows } = await getPool().query("SELECT id,url,title,href FROM featured_wallpapers ORDER BY position ASC");
+  await ensureSchema(); const { rows } = await getPool().query(`SELECT id, url, title, href, display_type AS "displayType" FROM featured_wallpapers ORDER BY position ASC`);
   return rows;
 }
 
 export async function allCategories() { await ensureSchema(); const { rows } = await getPool().query("SELECT id,slug,name FROM categories ORDER BY name"); return rows; }
 export async function categoryBySlug(slug: string) { await ensureSchema(); const { rows } = await getPool().query("SELECT id,slug,name FROM categories WHERE slug=$1", [slug]); return rows[0] ?? null; }
+
+
+export type AboutContent = { header: string; body: string };
+
+export async function getAboutContent(): Promise<AboutContent | null> {
+  await ensureSchema();
+  const { rows } = await getPool().query("SELECT value FROM store_settings WHERE key='about'");
+  const value = rows[0]?.value as AboutContent | undefined;
+  if (!value || typeof value.header !== "string" || typeof value.body !== "string") return null;
+  const header = value.header.trim();
+  const body = value.body.trim();
+  return header && body ? { header, body } : null;
+}
