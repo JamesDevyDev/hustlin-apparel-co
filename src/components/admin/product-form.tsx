@@ -40,7 +40,7 @@ export function ProductForm({ product }: { product?: Product }) {
   const [featured, setFeatured] = useState(product?.featured ?? false);
   const [features, setFeatures] = useState(product?.features.join("\n") ?? "");
   const [images, setImages] = useState<string[]>(product?.images ?? []);
-  const [imageUrl, setImageUrl] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [options, setOptions] = useState<OptionRow[]>(
     product?.options.map((o) => ({ name: o.name, values: o.values.join(", ") })) ??
     [],
@@ -51,16 +51,19 @@ export function ProductForm({ product }: { product?: Product }) {
   const setOption = (i: number, patch: Partial<OptionRow>) =>
     setOptions((prev) => prev.map((o, j) => (j === i ? { ...o, ...patch } : o)));
 
-  function addImage() {
-    const url = imageUrl.trim();
-    if (!url) return;
-    if (!/^https?:\/\//i.test(url) && !url.startsWith("/")) {
-      return setError("Image link must start with https:// (or / for a local file).");
-    }
-    if (images.includes(url)) return setError("That photo is already added.");
-    setError("");
-    setImages((prev) => [...prev, url]);
-    setImageUrl("");
+  async function uploadImage(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return setError("Choose an image file.");
+    if (file.size > 10 * 1024 * 1024) return setError("Image must be 10 MB or smaller.");
+    setError(""); setUploadingImage(true);
+    try {
+      const form = new FormData(); form.append("file", file);
+      const response = await fetch("/api/admin/images", { method: "POST", body: form });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Upload failed.");
+      setImages((prev) => [...prev, result.url]);
+    } catch (err) { setError(err instanceof Error ? err.message : "Image upload failed."); }
+    finally { setUploadingImage(false); }
   }
 
   async function onSubmit(e: FormEvent) {
@@ -184,27 +187,12 @@ export function ProductForm({ product }: { product?: Product }) {
             ))}
           </ul>
         )}
-        <div className="mt-2 flex gap-3">
-          <input
-            aria-label="Image link"
-            placeholder="Paste image link, e.g. https://…/tee-front.jpg"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addImage();
-              }
-            }}
-            className={`${input} !mt-0`}
-          />
-          <button
-            type="button"
-            onClick={addImage}
-            className="h-[46px] shrink-0 border-2 border-black px-6 text-xs uppercase tracking-[0.2em] hover:bg-black hover:text-white"
-          >
-            + Add photo
-          </button>
+        <div className="mt-3">
+          <label className="inline-flex cursor-pointer items-center border-2 border-black px-5 py-3 text-xs uppercase tracking-[0.2em] hover:bg-black hover:text-white">
+            {uploadingImage ? "Uploading…" : "+ Upload photo"}
+            <input type="file" accept="image/*" disabled={uploadingImage} className="sr-only" onChange={(e) => { uploadImage(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+          </label>
+          <p className="mt-2 text-xs text-black/60">Upload images (up to 10 MB). Photos are stored in Cloudinary.</p>
         </div>
       </div>
 
