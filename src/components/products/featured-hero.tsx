@@ -59,10 +59,7 @@ export function FeaturedHero() {
         className={`${frame} overflow-hidden bg-neutral-200`}
       >
         <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-neutral-200 via-neutral-100 to-neutral-200" />
-        <div className="absolute inset-x-0 bottom-0 space-y-3 px-5 pb-16 pt-32">
-          <div className="mx-auto h-8 w-2/5 rounded-sm bg-black/10 sm:h-12" />
-          <div className="mx-auto h-2 w-16 rounded-full bg-black/10" />
-        </div>
+
       </section>
     );
   }
