@@ -21,7 +21,9 @@ export interface Product {
   images: string[];
   options: ProductOption[];
   sizeChart?: SizeChart;
-  /** Units on hand. Deducted automatically when an order is placed. */
+  /** Inventory by size/variant value, e.g. { S: 3, M: 5, L: 6 }. */
+  stockBySize?: Record<string, number>;
+  /** Total units on hand, derived from stockBySize. */
   stock: number;
   available: boolean;
   featured: boolean;

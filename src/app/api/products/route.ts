@@ -24,9 +24,9 @@ export async function POST(request: NextRequest) {
     const slugBase = String(body.slug || body.name).toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "product";
     let slug = slugBase, suffix = 2;
     while ((await getPool().query("SELECT 1 FROM products WHERE slug=$1", [slug])).rowCount) slug = `${slugBase}-${suffix++}`;
-    const { rows } = await getPool().query(`INSERT INTO products (id,slug,name,price,category,features,images,options,size_chart,stock,available,featured)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [id,slug,body.name,Number(body.price),body.category || "tops",JSON.stringify(body.features || []),JSON.stringify(body.images || []),JSON.stringify(body.options || []),body.sizeChart ? JSON.stringify(body.sizeChart) : null,Number(body.stock ?? 0),body.available !== false,body.featured === true]);
+    const { rows } = await getPool().query(`INSERT INTO products (id,slug,name,price,category,features,images,options,size_chart,stock,stock_by_size,available,featured)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [id,slug,body.name,Number(body.price),body.category || "tops",JSON.stringify(body.features || []),JSON.stringify(body.images || []),JSON.stringify(body.options || []),body.sizeChart ? JSON.stringify(body.sizeChart) : null,Object.values(body.stockBySize || { "": Number(body.stock ?? 0) }).reduce((a, v) => a + Number(v), 0),JSON.stringify(body.stockBySize || { "": Number(body.stock ?? 0) }),body.available !== false,body.featured === true]);
     return Response.json(productFromRow(rows[0]), { status: 201 });
   } catch (e) { return Response.json({ error: e instanceof Error ? e.message : "Could not create product" }, { status: 400 }); }
 }
@@ -38,9 +38,9 @@ export async function PUT() {
     await ensureSchema();
     const count = Number((await getPool().query("SELECT COUNT(*) FROM products")).rows[0].count);
     if (count) return Response.json({ seeded: false, count });
-    for (const p of seeds) await getPool().query(`INSERT INTO products (id,slug,name,price,category,features,images,options,size_chart,stock,available,featured,created_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (id) DO NOTHING`,
-      [p.id,p.slug,p.name,p.price,p.category,JSON.stringify(p.features),JSON.stringify(p.images),JSON.stringify(p.options),p.sizeChart ? JSON.stringify(p.sizeChart) : null,p.stock,p.available,p.featured,p.createdAt]);
+    for (const p of seeds) await getPool().query(`INSERT INTO products (id,slug,name,price,category,features,images,options,size_chart,stock,stock_by_size,available,featured,created_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT (id) DO NOTHING`,
+      [p.id,p.slug,p.name,p.price,p.category,JSON.stringify(p.features),JSON.stringify(p.images),JSON.stringify(p.options),p.sizeChart ? JSON.stringify(p.sizeChart) : null,p.stock,JSON.stringify(p.stockBySize ?? { "": p.stock }),p.available,p.featured,p.createdAt]);
     return Response.json({ seeded: true, count: seeds.length });
   } catch (e) { return Response.json({ error: e instanceof Error ? e.message : "Seed failed" }, { status: 500 }); }
 }

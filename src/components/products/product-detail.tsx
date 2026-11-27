@@ -83,12 +83,11 @@ export function ProductDetail({ slug }: { slug: string }) {
     selection[opt.name] = chosen[opt.name] ?? opt.values[0];
   }
 
-  // Stock is shared across sizes, so count everything of this product in the cart.
-  const inStock = isInStock(product);
-  const inCart = items
-    .filter((l) => l.productId === product.id)
-    .reduce((n, l) => n + l.quantity, 0);
-  const remaining = Math.max(0, product.stock - inCart);
+  const selectedSize = selection[product.options.find((o) => o.name.trim().toLowerCase() === "size")?.name ?? ""] ?? "";
+  const selectedStock = product.stockBySize?.[selectedSize] ?? product.stockBySize?.[""] ?? product.stock;
+  const inStock = product.available && selectedStock > 0;
+  const inCart = items.filter((l) => l.productId === product.id && (l.options["Size"] ?? l.options["size"] ?? "") === selectedSize).reduce((n, l) => n + l.quantity, 0);
+  const remaining = Math.max(0, selectedStock - inCart);
   const qty = Math.min(quantity, Math.max(1, remaining));
   const canAdd = inStock && remaining > 0;
 
@@ -190,10 +189,10 @@ export function ProductDetail({ slug }: { slug: string }) {
             </button>
 
             {inStock && (
-              <p className={`text-[13px] ${product.stock <= 5 ? "text-red-600" : ""}`}>
-                {product.stock <= 5
-                  ? `Only ${product.stock} left`
-                  : `${product.stock} in stock`}
+              <p className={`text-[13px] ${selectedStock <= 5 ? "text-red-600" : ""}`}>
+                {selectedStock <= 5
+                  ? `Only ${selectedStock} left in ${selectedSize || "this option"}`
+                  : `${selectedStock} in stock for ${selectedSize || "this option"}`}
               </p>
             )}
 

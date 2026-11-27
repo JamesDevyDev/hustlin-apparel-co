@@ -15,17 +15,17 @@ export function CartView() {
   // Live stock, so the steppers can't go past what is actually available.
   useEffect(() => {
     listProducts().then((list) =>
-      setStock(Object.fromEntries(list.map((p) => [p.id, p.stock]))),
+      setStock(Object.fromEntries(list.flatMap((p) => Object.entries(p.stockBySize ?? { "": p.stock }).map(([size, count]) => [`${p.id}::${size}`, count])))),
     );
   }, []);
 
   /** Most units this line can hold, given the other lines of the same product. */
   const maxFor = (line: (typeof items)[number]) => {
-    if (!stock || stock[line.productId] === undefined) return undefined;
-    const others = items
-      .filter((l) => l.productId === line.productId && l.id !== line.id)
-      .reduce((n, l) => n + l.quantity, 0);
-    return Math.max(1, stock[line.productId] - others);
+    const size = line.options["Size"] ?? line.options["size"] ?? "";
+    const key = `${line.productId}::${size}`;
+    if (!stock || stock[key] === undefined) return undefined;
+    const others = items.filter((l) => l.productId === line.productId && l.id !== line.id && (l.options["Size"] ?? l.options["size"] ?? "") === size).reduce((n, l) => n + l.quantity, 0);
+    return Math.max(1, stock[key] - others);
   };
 
   if (!ready) {

@@ -49,35 +49,32 @@ export async function PATCH(
     // Stock is only deducted after the admin verifies the payment/order.
     // Pending and rejected orders do not change product inventory.
     if (decision === "verified") {
-      const quantities = new Map<string, number>();
+      const quantities = new Map<string, { productId: string; size: string; quantity: number }>();
 
-      for (const line of order.items as { productId: string; quantity: number }[]) {
-        quantities.set(
-          line.productId,
-          (quantities.get(line.productId) ?? 0) + Number(line.quantity),
-        );
+      for (const line of order.items as { productId: string; quantity: number; options?: Record<string, string> }[]) {
+        const size = line.options?.Size ?? line.options?.size ?? "";
+        const key = `${line.productId}::${size}`;
+        const current = quantities.get(key);
+        quantities.set(key, { productId: line.productId, size, quantity: (current?.quantity ?? 0) + Number(line.quantity) });
       }
 
-      for (const [productId, quantity] of quantities) {
+      for (const { productId, size, quantity } of quantities.values()) {
         const result = await client.query(
           `UPDATE products
-           SET stock = stock - $2
-           WHERE id = $1 AND stock >= $2
+           SET stock_by_size = jsonb_set(stock_by_size, ARRAY[$2]::text[], to_jsonb(COALESCE((stock_by_size ->> $2)::integer, 0) - $3), false),
+               stock = stock - $3
+           WHERE id = $1 AND COALESCE((stock_by_size ->> $2)::integer, 0) >= $3
            RETURNING id`,
-          [productId, quantity],
+          [productId, size, quantity],
         );
 
         if (result.rowCount === 0) {
           const product = await client.query(
-            "SELECT name, stock FROM products WHERE id = $1",
-            [productId],
+            "SELECT name, COALESCE((stock_by_size ->> $2)::integer, 0) AS size_stock FROM products WHERE id = $1",
+            [productId, size],
           );
-          if (!product.rows[0]) {
-            throw new Error("A product in this order no longer exists.");
-          }
-          throw new Error(
-            `Not enough stock for ${product.rows[0].name}. Only ${product.rows[0].stock} left.`,
-          );
+          if (!product.rows[0]) throw new Error("A product in this order no longer exists.");
+          throw new Error(`Not enough stock for ${product.rows[0].name} (${size || "default"}). Only ${product.rows[0].size_stock} left.`);
         }
       }
     }

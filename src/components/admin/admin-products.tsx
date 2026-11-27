@@ -59,7 +59,7 @@ export function AdminProducts() {
                   </td>
                   <td className="py-3 pr-4 capitalize">{p.category}</td>
                   <td className="py-3 pr-4">{formatPrice(p.price)}</td>
-                  <td className={`py-3 pr-4 ${p.stock <= 5 ? "text-red-600" : ""}`}>{p.stock}</td>
+                  <td className={`py-3 pr-4 ${p.stock <= 5 ? "text-red-600" : ""}`}><span className="font-medium">{p.stock}</span><span className="mt-1 block text-xs text-black/55">{Object.entries(p.stockBySize ?? {}).filter(([size]) => size).map(([size, count]) => `${size}: ${count}`).join(" · ") || "Default"}</span></td>
                   <td className="py-3 pr-4">
                     {!p.available ? "Hidden" : isInStock(p) ? "Available" : "Sold out"}
                   </td>

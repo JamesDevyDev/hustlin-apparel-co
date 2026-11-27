@@ -32,7 +32,12 @@ export function ProductForm({ product }: { product?: Product }) {
   const [name, setName] = useState(product?.name ?? "");
   const [slug, setSlug] = useState(product?.slug ?? "");
   const [price, setPrice] = useState(product ? String(product.price) : "");
-  const [stock, setStock] = useState(product ? String(product.stock) : "0");
+  const [stockBySize, setStockBySize] = useState<Record<string, string>>(() => {
+    const existing = product?.stockBySize ?? {};
+    if (Object.keys(existing).length) return Object.fromEntries(Object.entries(existing).map(([k, v]) => [k, String(v)]));
+    const sizeValues = product?.options.find((o) => o.name.trim().toLowerCase() === "size")?.values ?? [];
+    return sizeValues.length ? { [sizeValues[0]]: String(product?.stock ?? 0) } : { "": String(product?.stock ?? 0) };
+  });
   const [category, setCategory] = useState(
     product?.category ?? categories[0]?.slug ?? "",
   );
@@ -76,10 +81,17 @@ export function ProductForm({ product }: { product?: Product }) {
       return setError("Enter a valid price in pesos.");
     }
 
-    const stockNumber = Number(stock);
-    if (stock === "" || !Number.isInteger(stockNumber) || stockNumber < 0) {
-      return setError("Stock must be a whole number, 0 or more.");
+    const sizeOption = options.find((o) => o.name.trim().toLowerCase() === "size");
+    const sizeValues = sizeOption?.values.split(",").map((v) => v.trim()).filter(Boolean) ?? [];
+    const stockKeys = sizeValues.length ? sizeValues : [""];
+    const nextStock: Record<string, number> = {};
+    for (const key of stockKeys) {
+      const raw = stockBySize[key] ?? "0";
+      const value = Number(raw);
+      if (raw === "" || !Number.isInteger(value) || value < 0) return setError(`Stock for ${key || "default"} must be a whole number, 0 or more.`);
+      nextStock[key] = value;
     }
+    const stockNumber = Object.values(nextStock).reduce((sum, value) => sum + value, 0);
 
     const data: ProductInput = {
       name: name.trim(),
@@ -87,6 +99,7 @@ export function ProductForm({ product }: { product?: Product }) {
       price: Math.round(priceNumber),
       category,
       stock: stockNumber,
+      stockBySize: nextStock,
       available,
       featured,
       features: lines(features),
@@ -126,15 +139,9 @@ export function ProductForm({ product }: { product?: Product }) {
         <input id="slug" value={slug} onChange={(e) => setSlug(e.target.value)} className={input} />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="price" className="text-[13px]">Price (₱)</label>
-          <input id="price" type="number" min={0} step={1} inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} className={input} />
-        </div>
-        <div>
-          <label htmlFor="stock" className="text-[13px]">Stock</label>
-          <input id="stock" type="number" min={0} step={1} inputMode="numeric" value={stock} onChange={(e) => setStock(e.target.value)} className={input} />
-        </div>
+      <div>
+        <label htmlFor="price" className="text-[13px]">Price (₱)</label>
+        <input id="price" type="number" min={0} step={1} inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} className={input} />
       </div>
 
       <div>
@@ -212,6 +219,20 @@ export function ProductForm({ product }: { product?: Product }) {
         <button type="button" onClick={() => setOptions((prev) => [...prev, { name: "", values: "" }])} className="mt-3 text-[13px] underline underline-offset-4">
           + Add option
         </button>
+      </fieldset>
+
+      <fieldset>
+        <legend className="text-[13px]">Inventory by size</legend>
+        <p className="mt-1 text-xs text-black/60">Add a Size option above (for example S, M, L), then enter the available quantity for each size.</p>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {(options.find((o) => o.name.trim().toLowerCase() === "size")?.values.split(",").map((v) => v.trim()).filter(Boolean) ?? [""]).map((size) => (
+            <label key={size || "default"} className="text-[13px]">
+              {size || "Default stock"}
+              <input type="number" min={0} step={1} inputMode="numeric" value={stockBySize[size] ?? "0"} onChange={(e) => setStockBySize((prev) => ({ ...prev, [size]: e.target.value }))} className={input} />
+            </label>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-black/60">Total: {Object.values(stockBySize).reduce((sum, value) => sum + (Number(value) || 0), 0)} units</p>
       </fieldset>
 
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}

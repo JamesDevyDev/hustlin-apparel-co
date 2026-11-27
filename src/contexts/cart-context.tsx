@@ -74,11 +74,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     (product, options, quantity) => {
       const id = lineId(product.id, options);
       setItems((prev) => {
-        // Stock is shared by every option (size) of a product.
-        const inCart = prev
-          .filter((l) => l.productId === product.id)
-          .reduce((n, l) => n + l.quantity, 0);
-        const room = Math.min(MAX_QUANTITY, product.stock) - inCart;
+        const size = options["Size"] ?? options["size"] ?? "";
+        const available = product.stockBySize?.[size] ?? product.stockBySize?.[""] ?? product.stock;
+        const inCart = prev.filter((l) => l.productId === product.id && (l.options["Size"] ?? l.options["size"] ?? "") === size).reduce((n, l) => n + l.quantity, 0);
+        const room = Math.min(MAX_QUANTITY, available) - inCart;
         const toAdd = Math.min(quantity, room);
         if (toAdd < 1) return prev;
 

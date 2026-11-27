@@ -14,6 +14,7 @@ export async function ensureSchema() {
       features JSONB NOT NULL DEFAULT '[]', images JSONB NOT NULL DEFAULT '[]',
       options JSONB NOT NULL DEFAULT '[]', size_chart JSONB,
       stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+      stock_by_size JSONB NOT NULL DEFAULT '{}'::jsonb,
       available BOOLEAN NOT NULL DEFAULT TRUE, featured BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -45,6 +46,8 @@ export async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS orders_created_at_idx ON orders(created_at DESC);
     CREATE INDEX IF NOT EXISTS products_category_idx ON products(category);
   `);
+  await db.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_by_size JSONB NOT NULL DEFAULT '{}'::jsonb");
+  await db.query("UPDATE products SET stock_by_size = jsonb_build_object('', stock) WHERE stock_by_size = '{}'::jsonb AND stock > 0");
   await initializeAdminPassword();
   for (const category of seedCategories) await db.query("INSERT INTO categories(id,slug,name) VALUES($1,$2,$3) ON CONFLICT (id) DO NOTHING", [category.id, category.slug, category.name]);
 }
@@ -52,7 +55,7 @@ export async function ensureSchema() {
 export function productFromRow(row: any): Product {
   return { id: row.id, slug: row.slug, name: row.name, price: row.price, category: row.category,
     features: row.features ?? [], images: row.images ?? [], options: row.options ?? [],
-    ...(row.size_chart ? { sizeChart: row.size_chart } : {}), stock: row.stock,
+    ...(row.size_chart ? { sizeChart: row.size_chart } : {}), stockBySize: row.stock_by_size ?? {}, stock: Number(row.stock),
     available: row.available, featured: row.featured,
     createdAt: new Date(row.created_at).toISOString().slice(0, 10) };
 }
